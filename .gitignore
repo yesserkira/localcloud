@@ -1,0 +1,54 @@
+# LocalCloud data
+.localcloud/
+
+# Go
+/localcloud
+/localcloud.exe
+*.test
+*.out
+cover.html
+coverage.txt
+
+# Binaries
+/bin/
+/dist/
+
+# Dependencies
+vendor/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Node / Studio
+studio/node_modules/
+studio/dist/
+studio/.turbo/
+
+# Demo
+demo/saas-app/node_modules/
+
+# Environment
+.env
+.env.local
+*.env
+
+# Test
+__debug_bin*
+
+# SQLite
+*.db
+*.db-wal
+*.db-shm
+
+# Temp files
+*.tmp
+*.bak

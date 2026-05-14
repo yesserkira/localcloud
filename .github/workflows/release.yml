@@ -1,0 +1,84 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build ${{ matrix.os }}/${{ matrix.arch }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            os: linux
+            arch: amd64
+          - runner: ubuntu-latest
+            os: linux
+            arch: arm64
+            cc: aarch64-linux-gnu-gcc
+            pkg: gcc-aarch64-linux-gnu
+          - runner: macos-latest
+            os: darwin
+            arch: arm64
+          - runner: macos-13
+            os: darwin
+            arch: amd64
+          - runner: windows-latest
+            os: windows
+            arch: amd64
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.23"
+
+      - name: Install cross-compiler
+        if: matrix.pkg != ''
+        run: sudo apt-get update && sudo apt-get install -y ${{ matrix.pkg }}
+
+      - name: Build
+        env:
+          GOOS: ${{ matrix.os }}
+          GOARCH: ${{ matrix.arch }}
+          CGO_ENABLED: "1"
+          CC: ${{ matrix.cc || '' }}
+        run: |
+          EXT=""
+          if [ "${{ matrix.os }}" = "windows" ]; then EXT=".exe"; fi
+          go build -ldflags "-X main.version=${{ github.ref_name }}" \
+            -o dist/localcloud-${{ matrix.os }}-${{ matrix.arch }}${EXT} \
+            ./cmd/localcloud
+        shell: bash
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: localcloud-${{ matrix.os }}-${{ matrix.arch }}
+          path: dist/
+
+  release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Generate checksums
+        working-directory: dist
+        run: sha256sum * > checksums.txt
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true

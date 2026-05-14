@@ -1,0 +1,145 @@
+{
+  "format": "localcloud.scenario.v1",
+  "version": "0.1.0",
+  "exportedAt": "2026-01-15T10:30:00Z",
+  "scenario": {
+    "id": "scn_01JEXAMPLE000SCENARIO01",
+    "name": "signup-welcome-email",
+    "description": "Full signup flow: user creation, Postgres insert, Redis job, worker email via Mailpit",
+    "status": "completed",
+    "startedAt": "2026-01-15T10:25:00Z",
+    "stoppedAt": "2026-01-15T10:25:12Z",
+    "eventCount": 5,
+    "replayableCount": 1,
+    "rootEventIds": ["evt_01JEXAMPLE000EVENT00001"],
+    "tags": ["signup", "demo", "flagship"],
+    "createdBy": "cli"
+  },
+  "events": [
+    {
+      "id": "evt_01JEXAMPLE000EVENT00001",
+      "runId": "run_01JEXAMPLE000RUN000001",
+      "scenarioId": "scn_01JEXAMPLE000SCENARIO01",
+      "timestamp": "2026-01-15T10:25:01.100Z",
+      "source": "http_proxy",
+      "service": "api",
+      "action": "http.request",
+      "summary": "POST /signup -> 201 (42ms)",
+      "status": "ok",
+      "durationMs": 42,
+      "correlationId": "cor_01JEXAMPLE000CORR00001",
+      "request": {
+        "method": "POST",
+        "scheme": "http",
+        "host": "localhost:3000",
+        "path": "/signup",
+        "headers": {
+          "content-type": "application/json",
+          "user-agent": "curl/8.7.1",
+          "accept": "*/*"
+        },
+        "bodyPreview": "{\"email\":\"[REDACTED]\",\"name\":\"Jane Doe\",\"password\":\"[REDACTED]\"}",
+        "bodySha256": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2",
+        "bodyRedacted": true,
+        "replayable": true
+      },
+      "response": {
+        "statusCode": 201,
+        "headers": {
+          "content-type": "application/json; charset=utf-8"
+        },
+        "bodyPreview": "{\"id\":42,\"email\":\"[REDACTED]\",\"name\":\"Jane Doe\",\"createdAt\":\"2026-01-15T10:25:01Z\"}",
+        "bodyRedacted": true
+      }
+    },
+    {
+      "id": "evt_01JEXAMPLE000EVENT00002",
+      "runId": "run_01JEXAMPLE000RUN000001",
+      "scenarioId": "scn_01JEXAMPLE000SCENARIO01",
+      "timestamp": "2026-01-15T10:25:01.120Z",
+      "source": "postgres",
+      "service": "postgres",
+      "action": "postgres.insert",
+      "summary": "INSERT INTO users (email, name, password_hash) VALUES (...)",
+      "status": "ok",
+      "correlationId": "cor_01JEXAMPLE000CORR00001",
+      "parentEventId": "evt_01JEXAMPLE000EVENT00001",
+      "metadata": {
+        "table": "users",
+        "operation": "INSERT",
+        "rowId": "42"
+      },
+      "rawPayload": {
+        "format": "json",
+        "preview": "{\"table\":\"users\",\"op\":\"INSERT\",\"new\":{\"id\":42,\"email\":\"[REDACTED]\",\"name\":\"Jane Doe\",\"password_hash\":\"[REDACTED]\"}}",
+        "sha256": "b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3",
+        "byteSize": 185,
+        "redacted": true
+      }
+    },
+    {
+      "id": "evt_01JEXAMPLE000EVENT00003",
+      "runId": "run_01JEXAMPLE000RUN000001",
+      "scenarioId": "scn_01JEXAMPLE000SCENARIO01",
+      "timestamp": "2026-01-15T10:25:01.135Z",
+      "source": "redis",
+      "service": "redis",
+      "action": "redis.enqueue",
+      "summary": "LPUSH email_jobs {userId:42, type:welcome}",
+      "status": "ok",
+      "correlationId": "cor_01JEXAMPLE000CORR00001",
+      "parentEventId": "evt_01JEXAMPLE000EVENT00001",
+      "metadata": {
+        "queue": "email_jobs",
+        "command": "LPUSH"
+      },
+      "rawPayload": {
+        "format": "json",
+        "preview": "{\"type\":\"welcome\",\"userId\":42,\"email\":\"[REDACTED]\"}",
+        "sha256": "c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4",
+        "byteSize": 72,
+        "redacted": true
+      }
+    },
+    {
+      "id": "evt_01JEXAMPLE000EVENT00004",
+      "runId": "run_01JEXAMPLE000RUN000001",
+      "scenarioId": "scn_01JEXAMPLE000SCENARIO01",
+      "timestamp": "2026-01-15T10:25:03.500Z",
+      "source": "redis",
+      "service": "worker",
+      "action": "worker.job.complete",
+      "summary": "Worker processed welcome email job for userId:42",
+      "status": "ok",
+      "correlationId": "cor_01JEXAMPLE000CORR00001",
+      "metadata": {
+        "queue": "email_jobs",
+        "jobType": "welcome",
+        "userId": 42
+      }
+    },
+    {
+      "id": "evt_01JEXAMPLE000EVENT00005",
+      "runId": "run_01JEXAMPLE000RUN000001",
+      "scenarioId": "scn_01JEXAMPLE000SCENARIO01",
+      "timestamp": "2026-01-15T10:25:04.200Z",
+      "source": "mailpit",
+      "service": "mailpit",
+      "action": "email.captured",
+      "summary": "Welcome to Demo App! -> [REDACTED]@example.test",
+      "status": "ok",
+      "correlationId": "cor_01JEXAMPLE000CORR00001",
+      "metadata": {
+        "from": "noreply@demo.local",
+        "to": "[REDACTED]@example.test",
+        "subject": "Welcome to Demo App!"
+      }
+    }
+  ],
+  "redactionReport": {
+    "headersRedacted": 0,
+    "bodiesRedacted": 3,
+    "warnings": [],
+    "safe": true
+  }
+}

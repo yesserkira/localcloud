@@ -1,0 +1,122 @@
+version: 1
+project:
+  name: demo-saas
+  dataDir: .localcloud
+
+agent:
+  bind: 127.0.0.1
+  port: 41777
+  studioPort: 41778
+  database: .localcloud/localcloud.db
+  correlationHeader: x-localcloud-correlation-id
+
+compose:
+  files:
+    - docker-compose.yml
+  projectName: localcloud-demo-saas
+  autoStart: true
+
+services:
+  api:
+    type: http
+    baseUrl: http://localhost:3000
+    container: demo-api
+    healthPath: /health
+    capture:
+      inbound: true
+      outbound: true
+      proxyPort: 41800
+      replayBaseUrl: http://localhost:3000
+  worker:
+    type: worker
+    container: demo-worker
+  postgres:
+    type: postgres
+    dsn: postgres://localcloud:localcloud@localhost:5432/demo?sslmode=disable
+    capture:
+      mode: audit_trigger
+      schemas:
+        - public
+      tables:
+        - users
+      redactColumns:
+        - users.password_hash
+        - users.reset_token
+  redis:
+    type: redis
+    addr: localhost:6379
+    capture:
+      mode: monitor
+      queues:
+        - email_jobs
+        - default
+  mailpit:
+    type: mailpit
+    apiUrl: http://localhost:8025
+    smtpHost: localhost
+    smtpPort: 1025
+    capture:
+      pollInterval: 1s
+      redactBody: true
+
+redaction:
+  headers:
+    - authorization
+    - proxy-authorization
+    - cookie
+    - set-cookie
+    - x-api-key
+    - x-auth-token
+    - stripe-signature
+  jsonPaths:
+    - $.password
+    - $.token
+    - $.access_token
+    - $.refresh_token
+  bodyMaxBytes: 8192
+  storeRawBodies: false
+
+recording:
+  includeUncorrelatedEvents: true
+  defaultTags:
+    - demo
+  maxDuration: 10m
+
+replay:
+  defaultTargetBaseUrl: http://localhost:3000
+  requireConfirmationForMethods:
+    - POST
+    - PUT
+    - PATCH
+    - DELETE
+  regenerateCorrelationIds: true
+  timeout: 10s
+
+faults:
+  enabled: true
+  rules:
+    - name: force-signup-500
+      enabled: false
+      kind: force_http_status
+      scope: replay
+      match:
+        service: api
+        method: POST
+        path: /signup
+      action:
+        statusCode: 500
+        bodyJson:
+          error: forced by LocalCloud
+      safety:
+        maxHits: 5
+    - name: block-welcome-email
+      enabled: false
+      kind: block_email_delivery
+      scope: both
+      match:
+        service: mailpit
+        emailToContains: "@example.test"
+      action:
+        reason: blocked by LocalCloud fault rule
+      safety:
+        maxHits: 10
