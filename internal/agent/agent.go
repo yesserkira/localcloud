@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"net"
 	"sync"
 	"time"
 
@@ -113,8 +114,13 @@ func (a *Agent) Start(ctx context.Context) error {
 	// Start Studio API
 	studioAddr := fmt.Sprintf("%s:%d", a.cfg.Agent.Bind, a.cfg.Agent.StudioPort)
 	a.api = api.NewServer(db, a.bus, a.version, a.runID, a.logger)
+	studioLn, err := net.Listen("tcp", studioAddr)
+	if err != nil {
+		a.setStatus(StatusError)
+		return fmt.Errorf("agent: listen studio %s: %w", studioAddr, err)
+	}
 	go func() {
-		if err := a.api.ListenAndServe(studioAddr); err != nil {
+		if err := a.api.Serve(studioLn); err != nil {
 			a.logger.Error("studio api stopped", "err", err)
 		}
 	}()

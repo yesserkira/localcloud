@@ -19,6 +19,7 @@ import (
 
 // Server is the Studio API HTTP server.
 type Server struct {
+	mu       sync.Mutex
 	mux      *http.ServeMux
 	server   *http.Server
 	db       *storage.DB
@@ -90,24 +91,36 @@ func (s *Server) routes() {
 
 // ListenAndServe starts the server on the given address.
 func (s *Server) ListenAndServe(addr string) error {
-	s.server = &http.Server{
-		Addr:    addr,
-		Handler: s.corsMiddleware(s.mux),
-	}
 	ln, err := net.Listen("tcp", addr)
 	if err != nil {
 		return fmt.Errorf("api: listen %s: %w", addr, err)
 	}
-	s.logger.Info("studio api listening", "addr", addr)
-	return s.server.Serve(ln)
+	return s.Serve(ln)
+}
+
+// Serve starts serving on an existing listener. The http.Server is created
+// synchronously so that Shutdown is safe to call from another goroutine
+// immediately after Serve is invoked.
+func (s *Server) Serve(ln net.Listener) error {
+	srv := &http.Server{
+		Handler: s.corsMiddleware(s.mux),
+	}
+	s.mu.Lock()
+	s.server = srv
+	s.mu.Unlock()
+	s.logger.Info("studio api listening", "addr", ln.Addr().String())
+	return srv.Serve(ln)
 }
 
 // Shutdown gracefully stops the server.
 func (s *Server) Shutdown(ctx context.Context) error {
-	if s.server == nil {
+	s.mu.Lock()
+	srv := s.server
+	s.mu.Unlock()
+	if srv == nil {
 		return nil
 	}
-	return s.server.Shutdown(ctx)
+	return srv.Shutdown(ctx)
 }
 
 // Handler returns the underlying http.Handler for testing.

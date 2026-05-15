@@ -24,12 +24,15 @@ project:
 agent:
   bind: 127.0.0.1
   port: 41777
-  studioPort: 0
+  studioPort: 41778
   database: ` + dbPath + `
 `))
 	if err != nil {
 		t.Fatal(err)
 	}
+	// Use port 0 so the OS assigns a random port, avoiding conflicts
+	// between tests that run sequentially.
+	cfg.Agent.StudioPort = 0
 	return cfg
 }
 
